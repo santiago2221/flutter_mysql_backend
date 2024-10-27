@@ -253,10 +253,10 @@ app.get('/user-grades/:token', (req, res) => {
     // Definir consulta según tipo
     if (tipo === 'institucion') {
       query = `
-        SELECT contenido
+        SELECT CONVERT(contenido USING utf8) AS contenido
         FROM archivos
         WHERE JSON_CONTAINS(
-          JSON_EXTRACT(contenido, '$[*].Documento'),
+          JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento'),
           CAST(? AS UNSIGNED),
           '$'
         )`;
@@ -272,10 +272,10 @@ app.get('/user-grades/:token', (req, res) => {
       }
     } else if (tipo === 'eva') {
       query = `
-        SELECT contenido
+        SELECT CONVERT(contenido USING utf8) AS contenido
         FROM archivoseva
         WHERE JSON_CONTAINS(
-          JSON_EXTRACT(contenido, '$[*].Documento'),
+          JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento'),
           CAST(? AS UNSIGNED),
           '$'
         )`;
