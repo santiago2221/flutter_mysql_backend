@@ -300,16 +300,30 @@ app.get('/user-grades/:token', (req, res) => {
       // Log de resultados
       console.log('Query Results:', results);
 
-      // Verificar si hay resultados y extraer contenido
-      const content = results.length > 0
-        ? JSON.parse(results[0].contenido.toString('utf-8')).find(entry => entry.Documento === Number(decoded.username))
-        : null;
+      // Verificar si hay resultados y convertir contenido a JSON
+      if (results.length > 0) {
+        try {
+          // Convertir BLOB a cadena y luego a JSON
+          const contentBlob = results[0].contenido.toString('utf-8');
+          const contentJson = JSON.parse(contentBlob);
 
-      // Responder con los datos obtenidos o un mensaje si no hay contenido
-      res.json({
-        success: true,
-        content: content || `No hay calificaciones en la tabla ${tipo === 'institucion' ? 'archivos' : 'archivoseva'}`,
-      });
+          // Buscar el documento del usuario específico
+          const content = contentJson.find(entry => entry.Documento === Number(decoded.username));
+
+          res.json({
+            success: true,
+            content: content || `No hay calificaciones en la tabla ${tipo === 'institucion' ? 'archivos' : 'archivoseva'}`,
+          });
+        } catch (parseError) {
+          console.error('Error al parsear el contenido:', parseError); // Log de error
+          res.status(500).json({ success: false, message: 'Error al parsear el contenido del archivo' });
+        }
+      } else {
+        res.json({
+          success: true,
+          message: `No hay calificaciones en la tabla ${tipo === 'institucion' ? 'archivos' : 'archivoseva'}`,
+        });
+      }
     });
   } catch (err) {
     console.error('Token Error:', err); // Log de error
