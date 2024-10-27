@@ -230,7 +230,7 @@ app.get('/user-grades/:token', (req, res) => {
   const token = req.params.token;
   const year = req.query.year;
   const period = req.query.period;
-  const tipo = req.query.tipo;  // 'institucion' o 'eva'
+  const tipo = req.query.tipo;
 
   console.log('Token:', token);
   console.log('Year:', year);
@@ -238,7 +238,6 @@ app.get('/user-grades/:token', (req, res) => {
   console.log('Tipo:', tipo);
 
   try {
-    // Verificar el token
     const decoded = jwt.verify(token, 'tu_secreto');
     console.log('Decoded Token:', decoded);
 
@@ -246,76 +245,40 @@ app.get('/user-grades/:token', (req, res) => {
       return res.status(400).json({ success: false, message: 'Tipo de consulta no válido' });
     }
 
-    // Variables para consulta
-    let query;
-    let params = [JSON.stringify(decoded.username)]; // Cambiar a JSON string
-
-    // Definir consulta según tipo
-    if (tipo === 'institucion') {
-      query = `
-        SELECT CONVERT(contenido USING utf8) AS contenido
-        FROM archivos
-        WHERE JSON_CONTAINS(
-          JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento'),
-          ?,
-          '$'
-        )`;
-
-      // Añadir año y período si existen
-      if (year) {
-        query += ` AND año = ?`;
-        params.push(year);
-      }
-      if (period) {
-        query += ` AND periodos = ?`;
-        params.push(period);
-      }
-    } else if (tipo === 'eva') {
-      query = `
-        SELECT CONVERT(contenido USING utf8) AS contenido
-        FROM archivoseva
-        WHERE JSON_CONTAINS(
-          JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento'),
-          ?,
-          '$'
-        )`;
-
-      // Añadir año si existe (en 'eva' no se requiere periodo)
-      if (year) {
-        query += ` AND año = ?`;
-        params.push(year);
-      }
-    }
+    let query = `
+      SELECT JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento') AS documentos,
+             CONVERT(contenido USING utf8) AS contenido
+      FROM archivos
+      WHERE año = ? AND periodos = ?`;
+    let params = [year, period];
 
     console.log('Query:', query);
     console.log('Params:', params);
 
-    // Ejecutar consulta según el tipo seleccionado
     db.query(query, params, (error, results) => {
       if (error) {
-        console.error('Database Query Error:', error); // Log de error
+        console.error('Database Query Error:', error);
         return res.status(500).json({ success: false, message: 'Error al consultar la base de datos' });
       }
 
-      // Log de resultados
       console.log('Query Results:', results);
 
-      // Verificar si hay resultados y convertir contenido a JSON
       if (results.length > 0) {
         try {
-          // Convertir BLOB a cadena y luego a JSON
+          const documentos = results[0].documentos;
+          console.log('Documentos Extraídos:', documentos);
+
           const contentBlob = results[0].contenido.toString('utf-8');
           const contentJson = JSON.parse(contentBlob);
 
-          // Buscar el documento del usuario específico
-          const content = contentJson.find(entry => entry.Documento === Number(decoded.username));
+          const content = contentJson.find(entry => entry.Documento === decoded.username);
 
           res.json({
             success: true,
             content: content || `No hay calificaciones en la tabla ${tipo === 'institucion' ? 'archivos' : 'archivoseva'}`,
           });
         } catch (parseError) {
-          console.error('Error al parsear el contenido:', parseError); // Log de error
+          console.error('Error al parsear el contenido:', parseError);
           res.status(500).json({ success: false, message: 'Error al parsear el contenido del archivo' });
         }
       } else {
@@ -326,7 +289,7 @@ app.get('/user-grades/:token', (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Token Error:', err); // Log de error
+    console.error('Token Error:', err);
     res.status(401).json({ success: false, message: 'Token inválido o expirado' });
   }
 });
