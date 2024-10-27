@@ -647,7 +647,7 @@ app.delete('/delete-file/:tipo/:nombre', (req, res) => {
 
 
 // Configura el puerto para el servidor Express (diferente del puerto de MySQL)
-const PORT = process.env.PORT || 3000; // Usa un puerto diferente a 3307
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 80; // Usa un puerto diferente a 3307
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
