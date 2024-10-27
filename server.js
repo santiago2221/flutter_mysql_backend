@@ -230,7 +230,7 @@ app.get('/user-grades/:token', (req, res) => {
   const token = req.params.token;
   const year = req.query.year;
   const period = req.query.period;
-  const tipo = req.query.tipo;
+  const tipo = req.query.tipo;  // 'institucion' o 'eva'
 
   console.log('Token:', token);
   console.log('Year:', year);
@@ -238,6 +238,7 @@ app.get('/user-grades/:token', (req, res) => {
   console.log('Tipo:', tipo);
 
   try {
+    // Verificar el token
     const decoded = jwt.verify(token, 'tu_secreto');
     console.log('Decoded Token:', decoded);
 
@@ -245,40 +246,76 @@ app.get('/user-grades/:token', (req, res) => {
       return res.status(400).json({ success: false, message: 'Tipo de consulta no válido' });
     }
 
-    let query = `
-      SELECT JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento') AS documentos,
-             CONVERT(contenido USING utf8) AS contenido
-      FROM archivos
-      WHERE año = ? AND periodos = ?`;
-    let params = [year, period];
+    // Variables para consulta
+    let query;
+    let params = [decoded.username]; // Cambiar a JSON string
+
+    // Definir consulta según tipo
+    if (tipo === 'institucion') {
+      query = `
+        SELECT CONVERT(contenido USING utf8) AS contenido
+        FROM archivos
+        WHERE JSON_CONTAINS(
+          JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento'),
+          ?,
+          '$'
+        )`;
+
+      // Añadir año y período si existen
+      if (year) {
+        query += ` AND año = ?`;
+        params.push(year);
+      }
+      if (period) {
+        query += ` AND periodos = ?`;
+        params.push(period);
+      }
+    } else if (tipo === 'eva') {
+      query = `
+        SELECT CONVERT(contenido USING utf8) AS contenido
+        FROM archivoseva
+        WHERE JSON_CONTAINS(
+          JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento'),
+          ?,
+          '$'
+        )`;
+
+      // Añadir año si existe (en 'eva' no se requiere periodo)
+      if (year) {
+        query += ` AND año = ?`;
+        params.push(year);
+      }
+    }
 
     console.log('Query:', query);
     console.log('Params:', params);
 
+    // Ejecutar consulta según el tipo seleccionado
     db.query(query, params, (error, results) => {
       if (error) {
-        console.error('Database Query Error:', error);
+        console.error('Database Query Error:', error); // Log de error
         return res.status(500).json({ success: false, message: 'Error al consultar la base de datos' });
       }
 
+      // Log de resultados
       console.log('Query Results:', results);
 
+      // Verificar si hay resultados y convertir contenido a JSON
       if (results.length > 0) {
         try {
-          const documentos = results[0].documentos;
-          console.log('Documentos Extraídos:', documentos);
-
+          // Convertir BLOB a cadena y luego a JSON
           const contentBlob = results[0].contenido.toString('utf-8');
           const contentJson = JSON.parse(contentBlob);
 
-          const content = contentJson.find(entry => entry.Documento === decoded.username);
+          // Buscar el documento del usuario específico
+          const content = contentJson.find(entry => entry.Documento === Number(decoded.username));
 
           res.json({
             success: true,
             content: content || `No hay calificaciones en la tabla ${tipo === 'institucion' ? 'archivos' : 'archivoseva'}`,
           });
         } catch (parseError) {
-          console.error('Error al parsear el contenido:', parseError);
+          console.error('Error al parsear el contenido:', parseError); // Log de error
           res.status(500).json({ success: false, message: 'Error al parsear el contenido del archivo' });
         }
       } else {
@@ -289,7 +326,7 @@ app.get('/user-grades/:token', (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Token Error:', err);
+    console.error('Token Error:', err); // Log de error
     res.status(401).json({ success: false, message: 'Token inválido o expirado' });
   }
 });
