@@ -248,7 +248,7 @@ app.get('/user-grades/:token', (req, res) => {
 
     // Variables para consulta
     let query;
-    let params = [decoded.username];
+    let params = [JSON.stringify(decoded.username)]; // Cambiar a JSON string
 
     // Definir consulta según tipo
     if (tipo === 'institucion') {
@@ -257,7 +257,7 @@ app.get('/user-grades/:token', (req, res) => {
         FROM archivos
         WHERE JSON_CONTAINS(
           JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento'),
-          CAST(? AS UNSIGNED),
+          ?,
           '$'
         )`;
 
@@ -276,7 +276,7 @@ app.get('/user-grades/:token', (req, res) => {
         FROM archivoseva
         WHERE JSON_CONTAINS(
           JSON_EXTRACT(CONVERT(contenido USING utf8), '$[*].Documento'),
-          CAST(? AS UNSIGNED),
+          ?,
           '$'
         )`;
 
