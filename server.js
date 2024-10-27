@@ -232,9 +232,15 @@ app.get('/user-grades/:token', (req, res) => {
   const period = req.query.period;
   const tipo = req.query.tipo;  // 'institucion' o 'eva'
 
+  console.log('Token:', token);
+  console.log('Year:', year);
+  console.log('Period:', period);
+  console.log('Tipo:', tipo);
+
   try {
     // Verificar el token
     const decoded = jwt.verify(token, 'tu_secreto');
+    console.log('Decoded Token:', decoded);
 
     if (!tipo || !['institucion', 'eva'].includes(tipo)) {
       return res.status(400).json({ success: false, message: 'Tipo de consulta no válido' });
@@ -281,11 +287,18 @@ app.get('/user-grades/:token', (req, res) => {
       }
     }
 
+    console.log('Query:', query);
+    console.log('Params:', params);
+
     // Ejecutar consulta según el tipo seleccionado
     db.query(query, params, (error, results) => {
       if (error) {
+        console.error('Database Query Error:', error); // Log de error
         return res.status(500).json({ success: false, message: 'Error al consultar la base de datos' });
       }
+
+      // Log de resultados
+      console.log('Query Results:', results);
 
       // Verificar si hay resultados y extraer contenido
       const content = results.length > 0
@@ -299,10 +312,10 @@ app.get('/user-grades/:token', (req, res) => {
       });
     });
   } catch (err) {
+    console.error('Token Error:', err); // Log de error
     res.status(401).json({ success: false, message: 'Token inválido o expirado' });
   }
 });
-
 
 
 // Ruta para obtener la lista de usuarios
