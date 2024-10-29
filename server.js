@@ -671,6 +671,53 @@ app.delete('/delete-file/:tipo/:nombre', (req, res) => {
   });
 });
 
+// Ruta para listar los profesores
+app.get('/list-profesores', (req, res) => {
+  const query = 'SELECT username, password FROM profesores';
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      res.status(500).json({ success: false, message: 'Error al obtener los profesores' });
+    } else {
+      res.json({ success: true, files: results });
+    }
+  });
+});
+
+// Ruta para agregar un profesor
+app.post('/add-profesor', (req, res) => {
+  const { usuario, contrasena } = req.body;
+
+  if (!usuario || !contrasena) {
+    return res.status(400).json({ success: false, message: 'Usuario y contraseña son requeridos' });
+  }
+
+  const query = 'INSERT INTO profesores (username, password) VALUES (?, ?)';
+  db.query(query, [usuario, contrasena], (err, result) => {
+    if (err) {
+      res.status(500).json({ success: false, message: 'Error al agregar el profesor' });
+    } else {
+      res.json({ success: true, message: 'Profesor agregado exitosamente' });
+    }
+  });
+});
+
+// Ruta para eliminar un profesor
+app.delete('/delete-profesor/:usuario', (req, res) => {
+  const { usuario } = req.params;
+
+  const query = 'DELETE FROM profesores WHERE username = ?';
+  db.query(query, [usuario], (err, result) => {
+    if (err) {
+      res.status(500).json({ success: false, message: 'Error al eliminar el profesor' });
+    } else if (result.affectedRows === 0) {
+      res.status(404).json({ success: false, message: 'Profesor no encontrado' });
+    } else {
+      res.json({ success: true, message: 'Profesor eliminado exitosamente' });
+    }
+  });
+});
+
 
 
 // Configura el puerto para el servidor Express (diferente del puerto de MySQL)
