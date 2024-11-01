@@ -79,7 +79,6 @@ const sendEmail = async (to, subject, text) => {
   }
 };
 
-
 // Ruta para enviar correos electrónicos a estudiantes ausentes
 app.post('/send-absent-emails', async (req, res) => {
   const { course, absent_students } = req.body;
@@ -114,16 +113,20 @@ app.post('/send-absent-emails', async (req, res) => {
           const studentId = item['id']?.toString();
           return studentId && absent_students.includes(studentId) && item['Correo Electrónico']; // Verifica que haya correo
         })
-        .map(item => item['Correo Electrónico']?.toString() ?? ''); // Obtener correos electrónicos
+        .map(item => ({
+          email: item['Correo Electrónico']?.toString() ?? '',
+          name: item['Nombre']?.toString() ?? 'Estudiante' // Obtén el nombre del estudiante o usa un nombre genérico si no está disponible
+        }));
 
       if (absentEmails.length === 0) {
         return res.json({ success: true, message: 'No hay correos electrónicos válidos para enviar' });
       }
 
-      // Enviar correos electrónicos a los estudiantes ausentes
-      for (const email of absentEmails) {
+      // Enviar correos electrónicos personalizados a los estudiantes ausentes
+      for (const { email, name } of absentEmails) {
         if (email) {
-          await sendEmail(email, 'Asistencia', 'No asististe a la clase. Por favor, acercarse donde el coordinador de convivencia o director de curso.');
+          const message = `La niña ${name}, no asististe a la clase. Por favor, acercarse donde el coordinador de convivencia o director de curso.`;
+          await sendEmail(email, 'Asistencia', message);
         }
       }
       res.json({ success: true, message: 'Correos electrónicos enviados exitosamente' });
@@ -133,6 +136,7 @@ app.post('/send-absent-emails', async (req, res) => {
     }
   });
 });
+
 
 
 
@@ -605,11 +609,14 @@ app.get('/file-content-attendance/:course', (req, res) => {
 // Ruta para listar archivos de ambos tipos (generales y asistencias)
 app.get('/list-files', (req, res) => {
   const query = `
-    SELECT curso, nombre_archivo, 'general' AS tipo FROM archivos
-    UNION ALL
-    SELECT curso, nombre_archivo, 'asistencia' AS tipo FROM archivos_asistencias
-    UNION ALL
-    SELECT curso, nombre_archivo, 'pruebaseva' AS tipo FROM archivoseva
+   SELECT curso, nombre_archivo, 'general' AS tipo, año, periodos 
+FROM archivos
+UNION ALL
+SELECT curso, nombre_archivo, 'asistencia' AS tipo, NULL AS año, NULL AS periodos 
+FROM archivos_asistencias
+UNION ALL
+SELECT curso, nombre_archivo, 'pruebaseva' AS tipo, año, NULL AS periodos 
+FROM archivoseva;
   `;
 
   db.query(query, (err, results) => {
